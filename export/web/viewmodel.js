@@ -60,6 +60,34 @@ const BOB_GROUND_GRACE = 0.25;
 // The cue the clips fire as the empty magazine is released, which is the instant
 // the fresh one takes over as the magazine the reload is about; see
 // handOverMagazine().
+// Sprint carry pose, blended in by sprintBlend. Rotations are radians, offsets
+// are rig units (inches), both in camera space (X right, Y up, -Z forward).
+// The rotation is applied about `pivot`, roughly the firing hand, so the gun
+// visibly turns across the body (muzzle down-left, stock up-right) instead of
+// orbiting the camera as a whole.
+const SPRINT_POSE = Object.freeze({
+  pitch: -0.45,
+  yaw: 0.65,
+  roll: -0.38,
+  x: 0.2,
+  y: -1.2,
+  z: -0.5,
+  // Close to the camera so the arms behind it barely move while the
+  // muzzle out front does the travelling.
+  pivot: new THREE.Vector3(0, -3, -6),
+});
+
+// How the walk bob changes as sprintBlend rises: stride rate drops by `slow`,
+// lateral and vertical travel grow by `widen` and `lift`, and the gun rolls
+// and nods with the stride by up to `roll` and `pitch` radians.
+const SPRINT_BOB = Object.freeze({
+  slow: 0.45,
+  widen: 0.9,
+  lift: 0.5,
+  roll: 0.05,
+  pitch: 0.025,
+});
+
 const MAGAZINE_HANDOVER_CUE = /mag_out/;
 // The red tritium insert capping the front post is the element the eye lines up
 // on, so it defines where the sight picture points, not the tag authored on the
