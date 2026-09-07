@@ -1229,7 +1229,9 @@ const MEDAL_HOLD_SECONDS = 2.1;
 const MEDAL_FADE_SECONDS = 0.45;
 
 const match = new FreeForAllMatch({ scoreLimit: 30, timeLimitSeconds: 300 });
-const playerName = new PlayerName({ storage: localStorage });
+const playerName = new PlayerName({
+  storage: (() => { try { return window.localStorage; } catch { return null; } })(),
+});
 const callsignInput = document.getElementById('fe-callsign');
 const callsignWrap = document.getElementById('fe-callsign-wrap');
 function applyCallsign(value = callsignInput?.value) {
@@ -1874,9 +1876,12 @@ document.addEventListener('contextmenu', (event) => {
 });
 
 document.addEventListener('keydown', (event) => {
-  keys[event.code] = true;
-  if (['Space', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.code)) {
-    event.preventDefault();
+  const typing = event.target instanceof HTMLInputElement;
+  if (!typing) {
+    keys[event.code] = true;
+    if (['Space', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.code)) {
+      event.preventDefault();
+    }
   }
   if (event.repeat || !ready) return;
   if (event.code === 'Enter' && match.phase === 'ended') {
@@ -1886,7 +1891,7 @@ document.addEventListener('keydown', (event) => {
   // Any key but Esc starts or resumes from the shell — Esc is what released
   // the pointer lock to get here, and the browser owns it for a moment after.
   if (frontend.visible) {
-    if (event.target instanceof HTMLInputElement) {
+    if (typing) {
       if (event.code === 'Enter') {
         event.preventDefault();
         applyCallsign(event.target.value);
