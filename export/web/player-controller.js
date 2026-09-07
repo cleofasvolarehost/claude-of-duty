@@ -524,6 +524,12 @@ export class PlayerController {
       this.onFloor = groundedDuringMove;
       this.grounded = groundedDuringMove;
       if (groundedDuringMove && this.velocity.y < 0) this.velocity.y = 0;
+      // Collision overlap order on overlapping deck triangles chatters the
+      // capsule by a fraction of an inch. Snap the feet to the floor under
+      // them so the eye (and the teak texture) stay still.
+      if (groundedDuringMove && this.velocity.y <= this.maxGroundProbeRiseSpeed) {
+        this._snapToGround();
+      }
     }
 
     if (this.fallResetY !== null && this.collider.start.y - this.radius < this.fallResetY) {
@@ -788,8 +794,8 @@ export class PlayerController {
    * into a wall-heavy normal. A short vertical ray avoids treating that as a
    * lost floor while still requiring actual geometry directly below the feet.
    */
-  _probeGround() {
-    if (!this.worldReady || typeof this.worldOctree.rayIntersect !== 'function') return false;
+  _groundHit() {
+    if (!this.worldReady || typeof this.worldOctree.rayIntersect !== 'function') return null;
 
     const feetY = this.collider.start.y - this.radius;
     _groundOrigin.set(
@@ -799,11 +805,29 @@ export class PlayerController {
     );
     _groundRay.origin.copy(_groundOrigin);
     const hit = this.worldOctree.rayIntersect(_groundRay);
-    if (!hit || hit.distance > this.groundProbeDistance + this.skin * 2) return false;
+    // Allow a little extra reach so resolver chatter still finds the deck.
+    if (!hit || hit.distance > this.groundProbeDistance + 1) return null;
 
     hit.triangle.getNormal(_normal);
-    if (_normal.y < this.floorNormalY) return false;
+    if (_normal.y < this.floorNormalY) return null;
     this._collisionNormal.copy(_normal);
+    return hit.position ?? hit.point ?? null;
+  }
+
+  _probeGround() {
+    return Boolean(this._groundHit());
+  }
+
+  _snapToGround() {
+    const point = this._groundHit();
+    if (!point) return false;
+    // Raw hit Y is only a legal rest height on near-flat floors. On a slope
+    // it embeds the bottom sphere by radius*(1/ny - 1) and fights the resolver.
+    if (this._collisionNormal.y < 0.995) return false;
+    const delta = point.y - (this.collider.start.y - this.radius);
+    if (Math.abs(delta) > this.groundProbeDistance) return false;
+    this.collider.start.y += delta;
+    this.collider.end.y += delta;
     return true;
   }
 

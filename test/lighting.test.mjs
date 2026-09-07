@@ -196,6 +196,24 @@ test('material classes make chrome metallic and leave dielectrics alone', async 
   assert.equal(classifyMaterial(undefined), null);
 });
 
+test('world textures get anisotropic filtering so grazing floors do not shimmer', async () => {
+  const { applyTextureAnisotropy } = await import('../export/web/lighting.js');
+  const { Texture, Mesh, MeshStandardMaterial, PlaneGeometry, Group } = await import('three');
+
+  const map = new Texture();
+  const shared = new Texture();
+  const a = new Mesh(new PlaneGeometry(1, 1), new MeshStandardMaterial({ map, name: 'wpc/wood_teak_decking_dark' }));
+  const b = new Mesh(new PlaneGeometry(1, 1), new MeshStandardMaterial({ map: shared, name: 'wpc/wood_teak_decking_light' }));
+  const c = new Mesh(new PlaneGeometry(1, 1), new MeshStandardMaterial({ map: shared, name: 'wpc/ny_nyse_wood_floor_01' }));
+  const root = new Group();
+  root.add(a, b, c);
+
+  const changed = applyTextureAnisotropy(root, 8);
+  assert.equal(changed, 2, 'each unique texture is visited once');
+  assert.equal(map.anisotropy, 8);
+  assert.equal(shared.anisotropy, 8);
+});
+
 test('encodePng writes a decodable image with the expected pixels', () => {
   const w = 3, h = 2;
   const rgb = Buffer.from([
