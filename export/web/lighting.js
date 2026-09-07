@@ -282,6 +282,35 @@ export function applyMaterialClasses(root) {
   return changed;
 }
 
+const TEXTURE_SLOTS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap'];
+
+/**
+ * Raise anisotropy on unique textures in a loaded subtree.
+ * Grazing teak decking shimmers without it because the map is all
+ * high-frequency wood grain viewed at a shallow angle.
+ */
+export function applyTextureAnisotropy(root, anisotropy) {
+  const amount = Math.max(1, Number(anisotropy) || 1);
+  if (!root?.traverse) return 0;
+  const seen = new Set();
+  let changed = 0;
+  root.traverse((object) => {
+    if (!object.isMesh && !object.isSkinnedMesh) return;
+    const list = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of list) {
+      if (!material) continue;
+      for (const slot of TEXTURE_SLOTS) {
+        const texture = material[slot];
+        if (!texture || seen.has(texture)) continue;
+        seen.add(texture);
+        texture.anisotropy = amount;
+        changed += 1;
+      }
+    }
+  });
+  return changed;
+}
+
 /**
  * Turn the vision set's tone targets into post-pass uniforms.
  *

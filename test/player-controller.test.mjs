@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import { test } from 'node:test';
 import * as THREE from 'three';
+import { deserializeCollisionWorld } from '../export/web/collision-world.js';
 import { PlayerController } from '../export/web/player-controller.js';
 
 test('capsule stops at a wall without gaining launch velocity', () => {
@@ -180,6 +183,130 @@ test('a climb blocked by geometry lets go instead of hanging', () => {
   assert.ok(
     player.feetPosition.y < 40,
     `expected to be stopped under the overhang: y=${player.feetPosition.y}`,
+  );
+});
+
+test('strafing the Hijacked deck does not chatter the eye through the teak', () => {
+  const repo = path.join(import.meta.dirname, '..');
+  const metadata = JSON.parse(fs.readFileSync(path.join(repo, 'export/web/hijacked_collision_bvh.json'), 'utf8'));
+  const file = fs.readFileSync(path.join(repo, 'export/web/hijacked_collision_bvh.bin'));
+  const binary = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
+  const world = deserializeCollisionWorld(metadata, binary);
+  const camera = new THREE.PerspectiveCamera();
+  const player = new PlayerController(camera, world, {
+    spawn: new THREE.Vector3(2102, 57, 133),
+    radius: 16,
+    height: 72,
+    eyeHeight: 60,
+    moveSpeed: 300,
+    maxSlopeAngle: 45,
+  });
+
+  for (let i = 0; i < 60; i += 1) player.update(1 / 120, {});
+  let previous = player.position.y;
+  let maxStep = 0;
+  const eyes = [];
+  for (let i = 0; i < 360; i += 1) {
+    player.update(1 / 120, { strafe: Math.sin(i / 20) });
+    const y = player.position.y;
+    maxStep = Math.max(maxStep, Math.abs(y - previous));
+    eyes.push(y);
+    previous = y;
+  }
+  const span = Math.max(...eyes) - Math.min(...eyes);
+  assert.ok(player.isGrounded, 'player left the deck');
+  assert.ok(
+    maxStep < 0.04,
+    `deck chatter ${maxStep.toFixed(3)} in/step would shimmer the floor texture`,
+  );
+  assert.ok(
+    span < 0.08,
+    `eye Y wandered ${span.toFixed(3)} while strafing a flat deck patch`,
+  );
+});
+
+test('ground snap does not embed the capsule in a walkable ramp', () => {
+  const angle = THREE.MathUtils.degToRad(15);
+  const length = 800;
+  const rise = Math.tan(angle) * length;
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute([
+    -200, 0, 0,
+    200, 0, 0,
+    200, rise, -length,
+    -200, 0, 0,
+    200, rise, -length,
+    -200, rise, -length,
+  ], 3));
+  geometry.computeVertexNormals();
+  const world = new THREE.Group();
+  world.add(new THREE.Mesh(geometry));
+  world.updateWorldMatrix(true, true);
+
+  const camera = new THREE.PerspectiveCamera();
+  const player = new PlayerController(camera, world, {
+    spawn: new THREE.Vector3(0, 0.2, -20),
+    radius: 16,
+    height: 72,
+    eyeHeight: 60,
+    moveSpeed: 300,
+    maxSlopeAngle: 45,
+  });
+
+  let minClearance = Infinity;
+  let groundedFrames = 0;
+  for (let i = 0; i < 180; i += 1) {
+    player.update(1 / 120, { forward: true });
+    if (!player.isGrounded) continue;
+    groundedFrames += 1;
+    const hit = player.worldOctree.rayIntersect(
+      new THREE.Ray(
+        new THREE.Vector3(player.collider.start.x, player.collider.start.y + 8, player.collider.start.z),
+        new THREE.Vector3(0, -1, 0),
+      ),
+    );
+    if (!hit) continue;
+    const normal = hit.triangle.getNormal(new THREE.Vector3());
+    const point = hit.position ?? hit.point;
+    minClearance = Math.min(minClearance, player.collider.start.clone().sub(point).dot(normal));
+  }
+
+  assert.ok(groundedFrames > 30, `never walked the ramp: grounded ${groundedFrames} frames`);
+  assert.ok(
+    minClearance >= player.radius - 0.25,
+    `snap buried the capsule in the ramp: clearance ${minClearance.toFixed(3)} vs radius ${player.radius}`,
+  );
+});
+
+test('walking a layered floor does not bounce the eye up and down', () => {
+  // Hijacked's deck is overlapping BSP + xmodel triangles a fraction of an
+  // inch apart. A large downward snap that then fights the resolver makes the
+  // camera Y chatter, which reads as the floor texture shaking.
+  const world = new THREE.Group();
+  const floorA = new THREE.Mesh(new THREE.BoxGeometry(2000, 1, 2000));
+  floorA.position.y = -0.5;
+  const floorB = new THREE.Mesh(new THREE.BoxGeometry(2000, 1, 2000));
+  floorB.position.y = -0.45;
+  world.add(floorA, floorB);
+  world.updateWorldMatrix(true, true);
+
+  const camera = new THREE.PerspectiveCamera();
+  const player = new PlayerController(camera, world, {
+    spawn: new THREE.Vector3(0, 0.2, 0),
+    moveSpeed: 300,
+  });
+
+  const eyes = [];
+  for (let i = 0; i < 360; i += 1) {
+    player.update(1 / 120, { forward: true });
+    if (i >= 120) eyes.push(player.position.y);
+  }
+  const span = Math.max(...eyes) - Math.min(...eyes);
+  assert.ok(player.isGrounded, 'player left the floor');
+  assert.ok(
+    span < 0.2,
+    `camera Y jittered by ${span.toFixed(3)} while walking a layered floor; ` +
+      `y=${player.position.y} feet=${player.feetPosition.y}`,
   );
 });
 

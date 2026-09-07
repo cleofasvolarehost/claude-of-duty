@@ -605,14 +605,17 @@ import { Frontend } from './frontend.js';
 import { PlayCounter } from './play-counter.js';
 import { loadCollisionWorld } from './collision-world.js';
 import { optimizeStaticScene } from './scene-optimizer.js';
-import { applyEnvironmentLighting, loadGradeLut, POST_SHADER, HAZE, applyMaterialClasses } from './lighting.js';
+import { applyEnvironmentLighting, loadGradeLut, POST_SHADER, HAZE, applyMaterialClasses, applyTextureAnisotropy } from './lighting.js';
+import { aimDeathCamera } from './death-camera.js';
 import { loadProbeVolume, attachObjectProbe } from './light-probes.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87a8c8);
 scene.fog = new THREE.Fog(0x87a8c8, HAZE.near, HAZE.far);
 
-const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 1, 20000);
+// Far is just beyond the map diagonal (~6.6k) and the haze far plane.
+// 20k wasted depth precision and made the teak deck z-fight as you walked.
+const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 1, 10000);
 camera.rotation.order = 'YXZ';
 
 const MAX_RENDER_PIXELS = 1600 * 900;
@@ -1450,6 +1453,9 @@ function loadGltf(url, label) {
     if (gltf.scene) {
       const reclassified = applyMaterialClasses(gltf.scene);
       if (reclassified) console.info(`${label}: reclassified ${reclassified} materials`);
+      const anisotropy = Math.min(16, renderer.capabilities.getMaxAnisotropy() || 1);
+      const filtered = applyTextureAnisotropy(gltf.scene, anisotropy);
+      if (filtered) console.info(`${label}: anisotropy ${anisotropy} on ${filtered} textures`);
     }
     frontend.stage(label);
     return gltf;
@@ -2110,19 +2116,19 @@ function tick() {
       moving,
     });
     viewBob.update(dt, {
-      speed,
+      speed: playerHealth?.dead ? 0 : speed,
       grounded: player.isGrounded,
-      sprinting,
-      moving,
+      sprinting: Boolean(sprinting) && !playerHealth?.dead,
+      moving: Boolean(moving) && !playerHealth?.dead,
     });
     if (weapon.reloading && !viewmodel.reloading) weapon.finishReload();
     weapon.update(dt, { canFire: simulationActive && !sprinting && !playerHealth?.dead });
 
     if (playerHealth?.dead) {
       const sourcePosition = Number.isInteger(deathSource?.index) && !deathSource.dead
-        ? enemies?.targetPosition(deathSource)
+        ? deathSource.eyePosition?.() ?? enemies?.targetPosition(deathSource)
         : null;
-      if (sourcePosition) camera.lookAt(sourcePosition);
+      if (sourcePosition) aimDeathCamera(camera, camera.position, sourcePosition);
       const sourceEntry = match.getState().standings.find((entry) => entry.id === combatantId(deathSource));
       deathKiller.textContent = sourceEntry ? `Killed by ${sourceEntry.name}` : 'Killed in action';
       respawnCopy.textContent = `Respawning in ${Math.max(0, playerHealth.respawnTimer).toFixed(1)} seconds`;
