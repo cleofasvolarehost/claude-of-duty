@@ -9,17 +9,27 @@ function pitchFrom(camera) {
   return Math.atan2(forward.y, Math.max(horiz, 1e-8));
 }
 
-test('a close killer does not pitch the death camera into the floor', () => {
+test('a close killer at eye height does not pitch the death camera into the floor', () => {
   const camera = new THREE.PerspectiveCamera();
   camera.rotation.order = 'YXZ';
   camera.position.set(0, 60, 0);
 
-  // Killer standing almost on top of the player, torso well below the eye.
-  aimDeathCamera(camera, camera.position, new THREE.Vector3(8, 42, 3));
+  aimDeathCamera(camera, camera.position, new THREE.Vector3(8, 61, 3));
 
   const pitch = pitchFrom(camera);
-  assert.ok(pitch > -0.7, `death cam pitched into the deck: ${pitch}`);
-  assert.ok(pitch < 0.7, `death cam pitched into the sky: ${pitch}`);
+  assert.ok(Math.abs(pitch) <= 0.55 + 1e-6, `death cam pitched into the deck: ${pitch}`);
+});
+
+test('a killer far below cannot bury the view past the pitch clamp', () => {
+  const camera = new THREE.PerspectiveCamera();
+  camera.rotation.order = 'YXZ';
+  camera.position.set(0, 60, 0);
+
+  aimDeathCamera(camera, camera.position, new THREE.Vector3(8, -40, 3));
+
+  const pitch = pitchFrom(camera);
+  assert.ok(pitch >= -0.55 - 1e-6, `clamp failed: ${pitch}`);
+  assert.ok(pitch < 0, `expected to look down toward a lower killer, got ${pitch}`);
 });
 
 test('death camera looks toward the killer on the horizontal', () => {

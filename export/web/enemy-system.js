@@ -14,6 +14,7 @@ const _point = new THREE.Vector3();
 const _friendCenter = new THREE.Vector3();
 const _friendClosest = new THREE.Vector3();
 const _sphere = new THREE.Sphere();
+const _deathBox = new THREE.Box3();
 
 function findNode(root, name) {
   return root.getObjectByName(name) ?? null;
@@ -23,11 +24,12 @@ function planarDistance(a, b) {
   return Math.hypot(a.x - b.x, a.z - b.z);
 }
 
-// pb_death_faceplant already rotates the authored body onto the navmesh.
-// A second root roll (~77°) plus a 10-inch sink drove the torso through
-// the deck, so the corpse read as planted in the floor.
-export function deathRootPose(_blend = 1) {
-  return { rotationZ: 0, positionY: 0 };
+// Rebased pb_death_faceplant rotates around a standing pelvis and never
+// lowers the root, so the mesh floats ~22" above the navmesh. Return the
+// Y offset that plants worldMinY on the floor without a second roll.
+export function deathGroundOffset(worldMinY, floorY) {
+  if (!Number.isFinite(worldMinY) || !Number.isFinite(floorY)) return 0;
+  return floorY - worldMinY;
 }
 
 function dampAngle(current, target, lambda, dt) {
@@ -748,9 +750,13 @@ class Enemy {
       if (!active) return;
       this.advanceVisual(dt);
       this.deathBlend = Math.min(1, this.deathBlend + dt * 2.8);
-      const pose = deathRootPose(this.deathBlend);
-      this.modelRoot.rotation.z = pose.rotationZ;
-      this.modelRoot.position.y = pose.positionY;
+      this.modelRoot.rotation.z = 0;
+      this.modelRoot.position.y = 0;
+      if (this.body) {
+        this.body.updateWorldMatrix(true);
+        _deathBox.setFromObject(this.body);
+        this.modelRoot.position.y = deathGroundOffset(_deathBox.min.y, this.root.position.y);
+      }
       this.respawnTimer -= dt;
       if (this.respawnTimer <= 0) this.spawnAt(this.manager.respawnFor(this));
       return;
