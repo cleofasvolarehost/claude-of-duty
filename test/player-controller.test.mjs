@@ -279,9 +279,8 @@ test('ground snap does not embed the capsule in a walkable ramp', () => {
 });
 
 test('walking a layered floor does not bounce the eye up and down', () => {
-  // Hijacked's deck is overlapping BSP + xmodel triangles a fraction of an
-  // inch apart. A large downward snap that then fights the resolver makes the
-  // camera Y chatter, which reads as the floor texture shaking.
+  // Sanity: snap must not disturb a simple octree floor. Hijacked chatter is
+  // covered by the real-BVH deck test above.
   const world = new THREE.Group();
   const floorA = new THREE.Mesh(new THREE.BoxGeometry(2000, 1, 2000));
   floorA.position.y = -0.5;
