@@ -33,6 +33,14 @@ test('FFA ends at the score limit or when time expires', () => {
   assert.equal(timed.winnerId, 'b');
 });
 
+test('registering again updates the human callsign on the scoreboard', () => {
+  const match = new FreeForAllMatch();
+  match.register('player', 'YOU', { human: true });
+  match.register('player', 'CLEO', { human: true });
+  assert.equal(match.getState().standings[0].name, 'CLEO');
+  assert.equal(match.getState().standings[0].human, true);
+});
+
 test('suicides count as a death without awarding a kill', () => {
   const match = new FreeForAllMatch();
   match.register('player', 'You');

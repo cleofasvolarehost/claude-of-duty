@@ -155,6 +155,34 @@
   .fe-start-foot {
     display: flex; flex-direction: column; align-items: center; gap: 10px;
   }
+  .fe-callsign {
+    position: relative; display: flex; flex-direction: column;
+    align-items: center; gap: 6px; width: 258px;
+  }
+  .fe-callsign span {
+    font-size: 10px; letter-spacing: .3em; text-indent: .3em;
+    text-transform: uppercase; color: rgba(206, 224, 240, .62);
+  }
+  .fe-callsign input {
+    appearance: none; box-sizing: border-box; width: 100%; height: 34px;
+    border: 0; padding: 0 12px; background: none; color: #e6f2ff;
+    font: 600 12px/34px var(--fe-ui); font-stretch: condensed;
+    letter-spacing: .24em; text-align: center; text-transform: uppercase;
+    outline: none;
+  }
+  .fe-callsign input::placeholder { color: rgba(206, 224, 240, .42); }
+  .fe-callsign::before {
+    content: ''; position: absolute; inset: 18px 0 0; z-index: -1;
+    -webkit-mask: url('ui/menu_button_backing.png') center/100% 100% no-repeat;
+    mask: url('ui/menu_button_backing.png') center/100% 100% no-repeat;
+    background: rgba(139, 173, 198, .26);
+  }
+  .fe-callsign:focus-within::before {
+    -webkit-mask-image: url('ui/menu_button_backing_highlight.png');
+    mask-image: url('ui/menu_button_backing_highlight.png');
+    background: var(--fe-accent);
+  }
+  .fe-callsign:focus-within input { color: #04140d; }
 
   .fe-heading {
     margin: 0; font-size: 20px; font-weight: 600; letter-spacing: .38em;
@@ -488,6 +516,10 @@
         <figcaption>mp_hijacked</figcaption>
       </figure>
       <div class="fe-start-foot">
+        <label class="fe-callsign" id="fe-callsign-wrap">
+          <span>Callsign</span>
+          <input id="fe-callsign" type="text" maxlength="16" placeholder="YOU" autocomplete="nickname" spellcheck="false" enterkeyhint="done">
+        </label>
         <p class="fe-prompt">Click to play</p>
         <button type="button" class="fe-btn" data-action="class">Create a class</button>
         <p class="fe-count" id="fe-count" hidden></p>
@@ -603,6 +635,7 @@ import { MedalTracker } from './medals.js';
 import { Hud } from './hud.js';
 import { Frontend } from './frontend.js';
 import { PlayCounter } from './play-counter.js';
+import { PlayerName } from './player-name.js';
 import { loadCollisionWorld } from './collision-world.js';
 import { optimizeStaticScene } from './scene-optimizer.js';
 import { applyEnvironmentLighting, loadGradeLut, POST_SHADER, HAZE, applyMaterialClasses } from './lighting.js';
@@ -1196,7 +1229,28 @@ const MEDAL_HOLD_SECONDS = 2.1;
 const MEDAL_FADE_SECONDS = 0.45;
 
 const match = new FreeForAllMatch({ scoreLimit: 30, timeLimitSeconds: 300 });
-match.register('player', 'YOU', { human: true });
+const playerName = new PlayerName({ storage: localStorage });
+const callsignInput = document.getElementById('fe-callsign');
+const callsignWrap = document.getElementById('fe-callsign-wrap');
+function applyCallsign(value = callsignInput?.value) {
+  const name = playerName.set(value);
+  if (callsignInput) {
+    const typed = String(callsignInput.value ?? '').trim();
+    if (!typed) callsignInput.value = '';
+    else if (callsignInput.value !== name) callsignInput.value = name;
+  }
+  match.register('player', name, { human: true });
+  return name;
+}
+if (callsignInput) {
+  callsignInput.value = playerName.display === 'YOU' ? '' : playerName.display;
+  const stopPlay = (event) => event.stopPropagation();
+  callsignWrap?.addEventListener('click', stopPlay);
+  callsignInput.addEventListener('pointerdown', stopPlay);
+  callsignInput.addEventListener('change', () => applyCallsign());
+  callsignInput.addEventListener('blur', () => applyCallsign());
+}
+applyCallsign(playerName.display);
 
 const weaponEffects = new WeaponEffects(scene);
 // Reload audio is authored into the clip as notetracks, so the cues play from
@@ -1593,6 +1647,7 @@ function getDebugState() {
       grounded: player.isGrounded,
       crouched: player.crouched,
       enabled: player.enabled,
+      callsign: playerName.display,
       health: debugRound(playerHealth?.health ?? 0),
       maxHealth: debugRound(playerHealth?.maxHealth ?? 0),
       dead: Boolean(playerHealth?.dead),
@@ -1784,6 +1839,7 @@ document.addEventListener('pointerlockchange', () => {
   // harness out of the totals: `setAutomationActive` and the debug `showMenu`
   // enter the game without ever taking a pointer lock.
   if (locked) {
+    applyCallsign();
     frontend.enter();
     playCounter.record().then(renderPlayCount);
   } else frontend.suspend();
@@ -1830,6 +1886,14 @@ document.addEventListener('keydown', (event) => {
   // Any key but Esc starts or resumes from the shell — Esc is what released
   // the pointer lock to get here, and the browser owns it for a moment after.
   if (frontend.visible) {
+    if (event.target instanceof HTMLInputElement) {
+      if (event.code === 'Enter') {
+        event.preventDefault();
+        applyCallsign(event.target.value);
+        event.target.blur();
+      }
+      return;
+    }
     if (frontend.screen === 'class') {
       if (event.code === 'Escape' || event.code === 'Backspace') frontend.closeClass();
       if (event.code === 'Enter') frontend.confirmClass();
