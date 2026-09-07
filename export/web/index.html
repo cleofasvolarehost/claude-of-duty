@@ -591,6 +591,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { PlayerController } from './player-controller.js';
+import { T6_WALK_SPEED, T6_SPRINT_SPEED, T6_CROUCH_SPEED } from './t6-movement.js';
 import { loadNavigation } from './navigation.js';
 import { Viewmodel } from './viewmodel.js';
 import { ViewBob } from './view-bob.js';
@@ -1930,8 +1931,9 @@ async function start() {
       eyeHeight: 60,
       crouchHeight: 48,
       crouchEyeHeight: 40,
-      moveSpeed: 300,
-      sprintSpeed: 450,
+      moveSpeed: T6_WALK_SPEED,
+      sprintSpeed: T6_SPRINT_SPEED,
+      crouchSpeed: T6_CROUCH_SPEED,
       jumpHeight: 48,
       maxSlopeAngle: 45,
       fallResetY: -700,

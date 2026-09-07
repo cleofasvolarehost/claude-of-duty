@@ -1,7 +1,60 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import { test } from 'node:test';
 import * as THREE from 'three';
-import { PlayerController } from '../export/web/player-controller.js';
+import {
+  PlayerController,
+  T6_WALK_SPEED,
+  T6_SPRINT_SPEED,
+  T6_CROUCH_SPEED,
+} from '../export/web/player-controller.js';
+
+test('T6 infantry speeds are BO2-paced, not the 300/450 hyperglide', () => {
+  assert.equal(T6_WALK_SPEED, 190);
+  assert.equal(T6_SPRINT_SPEED, 285);
+  assert.equal(T6_CROUCH_SPEED, 120);
+  assert.ok(T6_WALK_SPEED < 250, 'walk should be slower than the old 300 glide');
+  assert.ok(T6_SPRINT_SPEED < 400, 'sprint should be slower than the old 450 glide');
+  assert.ok(T6_CROUCH_SPEED < T6_WALK_SPEED);
+
+  const html = fs.readFileSync(path.join(import.meta.dirname, '../export/web/index.html'), 'utf8');
+  assert.match(html, /moveSpeed:\s*T6_WALK_SPEED/);
+  assert.match(html, /sprintSpeed:\s*T6_SPRINT_SPEED/);
+  assert.match(html, /crouchSpeed:\s*T6_CROUCH_SPEED/);
+  assert.doesNotMatch(html, /moveSpeed:\s*300\b/);
+  assert.doesNotMatch(html, /sprintSpeed:\s*450\b/);
+});
+
+test('the controller reaches T6 walk and sprint on a flat floor', () => {
+  const world = new THREE.Group();
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(4000, 1, 4000));
+  floor.position.y = -0.5;
+  world.add(floor);
+  world.updateWorldMatrix(true, true);
+
+  const camera = new THREE.PerspectiveCamera();
+  const player = new PlayerController(camera, world, {
+    spawn: new THREE.Vector3(0, 0.2, 0),
+    moveSpeed: T6_WALK_SPEED,
+    sprintSpeed: T6_SPRINT_SPEED,
+    crouchSpeed: T6_CROUCH_SPEED,
+  });
+
+  run(player, 0.8, { forward: true });
+  const walk = Math.hypot(player.velocity.x, player.velocity.z);
+  assert.ok(
+    Math.abs(walk - T6_WALK_SPEED) < 8,
+    `walk settled at ${walk.toFixed(1)}, expected ${T6_WALK_SPEED}`,
+  );
+
+  run(player, 0.8, { forward: true, sprint: true });
+  const sprint = Math.hypot(player.velocity.x, player.velocity.z);
+  assert.ok(
+    Math.abs(sprint - T6_SPRINT_SPEED) < 8,
+    `sprint settled at ${sprint.toFixed(1)}, expected ${T6_SPRINT_SPEED}`,
+  );
+});
 
 test('capsule stops at a wall without gaining launch velocity', () => {
   const world = new THREE.Group();

@@ -54,6 +54,8 @@ function readAxis(input, positiveNames, negativeNames) {
   return clamp(value, -1, 1);
 }
 
+export { T6_WALK_SPEED, T6_SPRINT_SPEED, T6_CROUCH_SPEED } from './t6-movement.js';
+
 function copyPosition(value, fallback) {
   if (value && value.isVector3) return value.clone();
   if (value && Number.isFinite(value.x) && Number.isFinite(value.y) && Number.isFinite(value.z)) {

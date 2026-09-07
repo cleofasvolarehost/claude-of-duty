@@ -314,7 +314,7 @@ for (const { id, sightTag, insert, adsSightAnchors } of RIFLE_SIGHT_CONFIGS) {
 test('a brief loss of ground contact, as on a stair riser, does not stop the walk bob', () => {
   const viewmodel = new Viewmodel();
   viewmodel.ready = true;
-  const walk = { speed: 300, moving: true, grounded: true };
+  const walk = { speed: 190, moving: true, grounded: true };
   for (let i = 0; i < 120; i += 1) viewmodel.update(1 / 60, walk);
   const before = viewmodel.bobAmp;
   for (let i = 0; i < 6; i += 1) viewmodel.update(1 / 60, { ...walk, grounded: false });

@@ -30,7 +30,7 @@ test('walking bobs the camera and restore puts it back exactly', () => {
   const quaternion = camera.quaternion.clone();
   let moved = false;
   for (let i = 0; i < 60; i += 1) {
-    bob.update(1 / 60, { speed: 300, moving: true, grounded: true });
+    bob.update(1 / 60, { speed: 190, moving: true, grounded: true });
     bob.apply(camera);
     if (camera.position.distanceTo(position) > 0.05) moved = true;
     bob.restore(camera);
@@ -42,29 +42,29 @@ test('walking bobs the camera and restore puts it back exactly', () => {
 
 test('sprinting swings harder and leans in, and airborne stride fades', () => {
   const walk = new ViewBob();
-  settle(walk, { speed: 300, moving: true, grounded: true });
+  settle(walk, { speed: 190, moving: true, grounded: true });
   const sprint = new ViewBob();
-  settle(sprint, { speed: 450, moving: true, sprinting: true, grounded: true });
+  settle(sprint, { speed: 285, moving: true, sprinting: true, grounded: true });
   assert.ok(sprint.sprintBlend > 0.99);
   assert.ok(sprint.tilt.x < 0, 'sprint should pitch the eye down slightly');
   let walkPeak = 0;
   let sprintPeak = 0;
   for (let i = 0; i < 120; i += 1) {
-    walk.update(1 / 60, { speed: 300, moving: true, grounded: true });
-    sprint.update(1 / 60, { speed: 450, moving: true, sprinting: true, grounded: true });
+    walk.update(1 / 60, { speed: 190, moving: true, grounded: true });
+    sprint.update(1 / 60, { speed: 285, moving: true, sprinting: true, grounded: true });
     walkPeak = Math.max(walkPeak, Math.abs(walk.offset.x));
     sprintPeak = Math.max(sprintPeak, Math.abs(sprint.offset.x));
   }
   assert.ok(sprintPeak > walkPeak * 1.5);
 
-  settle(sprint, { speed: 450, moving: true, sprinting: true, grounded: false });
+  settle(sprint, { speed: 285, moving: true, sprinting: true, grounded: false });
   assert.ok(sprint.bobAmp < 0.01, 'airborne stride should fade out');
 });
 
 test('apply is idempotent until restored', () => {
   const bob = new ViewBob();
   const camera = new THREE.PerspectiveCamera();
-  settle(bob, { speed: 300, moving: true, grounded: true }, 0.5);
+  settle(bob, { speed: 190, moving: true, grounded: true }, 0.5);
   bob.apply(camera);
   const once = camera.position.clone();
   bob.apply(camera);
@@ -75,10 +75,10 @@ test('apply is idempotent until restored', () => {
 
 test('a brief loss of ground contact, as on a stair riser, does not stop the stride', () => {
   const bob = new ViewBob();
-  settle(bob, { speed: 300, moving: true, grounded: true });
+  settle(bob, { speed: 190, moving: true, grounded: true });
   const before = bob.bobAmp;
-  for (let i = 0; i < 6; i += 1) bob.update(1 / 60, { speed: 300, moving: true, grounded: false });
+  for (let i = 0; i < 6; i += 1) bob.update(1 / 60, { speed: 190, moving: true, grounded: false });
   assert.ok(Math.abs(bob.bobAmp - before) < 1e-6, 'six airborne frames should not touch the stride');
-  settle(bob, { speed: 300, moving: true, grounded: false }, 1);
+  settle(bob, { speed: 190, moving: true, grounded: false }, 1);
   assert.ok(bob.bobAmp < 0.01, 'a real jump still fades the stride');
 });

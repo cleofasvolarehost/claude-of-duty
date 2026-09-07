@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { createMuzzleFlashTexture } from './weapon-effects.js';
+import { T6_WALK_SPEED } from './t6-movement.js';
 import { parseNotetracks, NotetrackTimeline } from './notetracks.js';
 
 // The exported viewhands skeleton keeps the engine's view axes in tag_view's
@@ -821,7 +822,7 @@ export class Viewmodel {
     // stride carries on briefly after the last contact instead of hitching.
     this.airTime = grounded ? 0 : this.airTime + dt;
     const movingGrounded = moving && this.airTime < BOB_GROUND_GRACE;
-    const speedFactor = clamp(speed / 300, 0, 1.4);
+    const speedFactor = clamp(speed / T6_WALK_SPEED, 0, 1.4);
     this.sprintBlend = damp(
       this.sprintBlend,
       sprinting && !this.aiming && !this.reloading ? 1 : 0,

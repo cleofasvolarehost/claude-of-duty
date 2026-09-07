@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { T6_WALK_SPEED } from './t6-movement.js';
 
 // Camera-space view bob: the stride nudges the eye and rolls it a little,
 // heavier when sprinting. The camera is the gameplay truth for position and
@@ -62,7 +63,7 @@ export class ViewBob {
     // Same stride clock as the viewmodel bob so the gun and the eye agree.
     this.airTime = grounded ? 0 : this.airTime + dt;
     const movingGrounded = moving && this.airTime < GROUND_GRACE;
-    const speedFactor = THREE.MathUtils.clamp(speed / 300, 0, 1.4);
+    const speedFactor = THREE.MathUtils.clamp(speed / T6_WALK_SPEED, 0, 1.4);
     this.bobAmp = damp(this.bobAmp, movingGrounded ? speedFactor : 0, 8, dt);
     if (movingGrounded) this.bobTime += dt * (5.5 + 4 * speedFactor) * (1 - SPRINT.slow * sprint);
 
