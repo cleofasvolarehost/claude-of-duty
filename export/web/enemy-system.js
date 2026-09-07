@@ -23,6 +23,13 @@ function planarDistance(a, b) {
   return Math.hypot(a.x - b.x, a.z - b.z);
 }
 
+// pb_death_faceplant already rotates the authored body onto the navmesh.
+// A second root roll (~77°) plus a 10-inch sink drove the torso through
+// the deck, so the corpse read as planted in the floor.
+export function deathRootPose(_blend = 1) {
+  return { rotationZ: 0, positionY: 0 };
+}
+
 function dampAngle(current, target, lambda, dt) {
   const delta = Math.atan2(Math.sin(target - current), Math.cos(target - current));
   return current + delta * (1 - Math.exp(-lambda * dt));
@@ -741,8 +748,9 @@ class Enemy {
       if (!active) return;
       this.advanceVisual(dt);
       this.deathBlend = Math.min(1, this.deathBlend + dt * 2.8);
-      this.modelRoot.rotation.z = -this.deathBlend * 1.35;
-      this.modelRoot.position.y = -this.deathBlend * 10;
+      const pose = deathRootPose(this.deathBlend);
+      this.modelRoot.rotation.z = pose.rotationZ;
+      this.modelRoot.position.y = pose.positionY;
       this.respawnTimer -= dt;
       if (this.respawnTimer <= 0) this.spawnAt(this.manager.respawnFor(this));
       return;
